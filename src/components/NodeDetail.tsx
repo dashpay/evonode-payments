@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import {
+  etaRemainingBlocks,
+  etaTooltip,
   formatCredits,
   formatDash,
   formatDate,
-  formatDateTime,
-  formatDuration,
+  monthlyTooltip,
   shortHash,
 } from '../lib/format';
 import type { DashboardData, LiveNodeData, NodeEpochStat } from '../types';
@@ -44,7 +45,6 @@ export function NodeDetail({
   const maxBlocks = Math.max(1, ...stats.map((s) => s.stat?.blocks ?? 0));
 
   const eta = row?.eta;
-  const etaRemaining = eta ? Math.max(0, eta.etaMs - (now - data.fetchedAt)) : null;
 
   // Value accrued so far this epoch, priced at the last finalized epoch's per-block rate.
   const lastEpoch = data.epochs.length ? data.epochs[data.epochs.length - 1] : null;
@@ -83,12 +83,16 @@ export function NodeDetail({
       </div>
 
       <div className="cards detail-cards">
-        <div className="card">
+        <div className="card" title={row ? monthlyTooltip(row, data) : undefined}>
           <div className="card-value">
             {row && row.estMonthlyCredits > 0 ? formatDash(row.estMonthlyCredits, 2) : '—'}
           </div>
           <div className="card-label">Est. monthly earnings</div>
-          <div className="card-sub">gross, from the last {Math.min(6, data.epochs.length)} epochs</div>
+          <div className="card-sub">
+            {row && row.estMonthlyCoreCredits > 0
+              ? `${formatDash(row.estMonthlyPlatformCredits, 2)} platform + ${formatDash(row.estMonthlyCoreCredits, 2)} core — hover for breakdown`
+              : 'platform proposals — hover for breakdown'}
+          </div>
         </div>
         <div className="card">
           <div className="card-value">
@@ -105,14 +109,20 @@ export function NodeDetail({
             {row && row.lastEpochCredits > 0n ? formatDash(row.lastEpochCredits) : 'no payout'}
           </div>
         </div>
-        <div className="card">
+        <div className="card" title={eta ? etaTooltip(eta, data, now) : undefined}>
           <div className="card-value">
-            {eta && etaRemaining != null ? formatDuration(etaRemaining) : '—'}
+            {eta ? (
+              <>
+                ~{etaRemainingBlocks(eta, data, now).toLocaleString()} <small>blocks</small>
+              </>
+            ) : (
+              '—'
+            )}
           </div>
           <div className="card-label">Next proposal (est.)</div>
           <div className="card-sub">
-            {eta && etaRemaining != null
-              ? `~${eta.blocks} blocks · ${formatDateTime(data.fetchedAt + eta.etaMs)}`
+            {eta
+              ? `after ${eta.rotations} quorum rotation${eta.rotations === 1 ? '' : 's'} — hover for details`
               : row?.inActiveQuorum
                 ? 'already proposed in this rotation'
                 : 'not in an active quorum — waits for rotation'}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { formatDash, formatDuration, shortHash } from '../lib/format';
+import { etaLabel, etaTooltip, formatDash, monthlyTooltip, shortHash } from '../lib/format';
 import type { DashboardData, NodeRow } from '../types';
 
 type SortKey =
@@ -87,12 +87,7 @@ export function NodeTable({
 
   const etaCell = (n: NodeRow) => {
     if (!n.eta) return <span className="muted">—</span>;
-    const remaining = n.eta.etaMs - (now - data.fetchedAt);
-    return (
-      <span title={`~${n.eta.blocks} blocks from last refresh`}>
-        {formatDuration(Math.max(0, remaining))}
-      </span>
-    );
+    return <span title={etaTooltip(n.eta, data, now)}>{etaLabel(n.eta, data, now)}</span>;
   };
 
   const lastIndex = data.epochs.length ? data.epochs[data.epochs.length - 1].index : '—';
@@ -169,7 +164,7 @@ export function NodeTable({
                 <td>{n.lastEpochBlocks || <span className="muted">0</span>}</td>
                 <td>{n.lastEpochCredits > 0n ? formatDash(n.lastEpochCredits) : <span className="muted">—</span>}</td>
                 <td>{n.avgBlocksPerEpoch ? n.avgBlocksPerEpoch.toFixed(1) : <span className="muted">0</span>}</td>
-                <td>
+                <td title={monthlyTooltip(n, data)}>
                   {n.estMonthlyCredits > 0 ? (
                     formatDash(n.estMonthlyCredits, 2)
                   ) : (
@@ -192,9 +187,10 @@ export function NodeTable({
       <p className="table-footnote">
         Click a node for its per-epoch history, claimable balance, and live current-epoch count.
         ★ tracks a node locally (this browser only) for the combined claimable-balance view.
-        Earnings are gross proposer payouts before masternode reward shares. “Next proposal” is an
-        estimate from the current validator-set rotation; nodes outside active quorums enter the
-        schedule at the next rotation.
+        Est. monthly = platform proposal earnings + core payment-queue payouts (hover any value for
+        the full breakdown), gross of masternode reward shares. “Next proposal” shows blocks until
+        the node's slot and how many quorum rotations precede it; nodes outside active quorums
+        enter the schedule at a later rotation.
       </p>
     </>
   );

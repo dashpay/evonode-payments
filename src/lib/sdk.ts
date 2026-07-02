@@ -83,6 +83,8 @@ export async function fetchFinalizedEpochs(
         index,
         firstBlockHeight: info.firstBlockHeight,
         firstBlockTime: info.firstBlockTime,
+        firstCoreBlockHeight: info.firstCoreBlockHeight,
+        nextEpochStartCoreBlockHeight: info.nextEpochStartCoreBlockHeight,
         totalBlocks: info.totalBlocksInEpoch,
         processingFees: info.totalProcessingFees,
         distributedStorageFees: info.totalDistributedStorageFees,

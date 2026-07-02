@@ -30,13 +30,14 @@ export function buildProposalSchedule(
   const rotatableCount = count > 10 ? count - 2 : count;
 
   let slot = 0;
-  const record = (proTxHash: string, quorumHash: string) => {
+  const record = (proTxHash: string, quorumHash: string, rotations: number) => {
     slot += 1;
     if (!etas.has(proTxHash)) {
       etas.set(proTxHash, {
         blocks: slot,
         etaMs: slot * avgBlockTimeMs,
         quorumHash,
+        rotations,
       });
     }
   };
@@ -47,20 +48,22 @@ export function buildProposalSchedule(
     for (const m of current.members) {
       if (m.isBanned) continue;
       if (compareBytes(m.proTxHashBytes, info.lastBlockProposerBytes) > 0) {
-        record(m.proTxHash, current.quorumHashHex);
+        record(m.proTxHash, current.quorumHashHex, 0);
       }
     }
   }
 
   // Then a full rotation through the remaining quorums.
   let index = currentIndex;
+  let rotations = 0;
   for (let visited = 0; visited < rotatableCount - 1; visited++) {
     index = index + 1 >= rotatableCount ? 0 : index + 1;
     if (index === currentIndex) continue;
     const vs = setsByHash.get(order[index]);
     if (!vs) continue;
+    rotations += 1;
     for (const m of vs.members) {
-      if (!m.isBanned) record(m.proTxHash, vs.quorumHashHex);
+      if (!m.isBanned) record(m.proTxHash, vs.quorumHashHex, rotations);
     }
   }
 

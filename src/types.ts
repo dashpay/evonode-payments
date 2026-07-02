@@ -45,6 +45,8 @@ export interface ProposalEta {
   blocks: number;
   etaMs: number;
   quorumHash: string;
+  /** Validator-set rotations before this node's quorum is active (0 = current). */
+  rotations: number;
 }
 
 // --- epochs and earnings ------------------------------------------------------
@@ -54,6 +56,8 @@ export interface EpochSummary {
   index: number;
   firstBlockHeight: bigint;
   firstBlockTime: number; // ms
+  firstCoreBlockHeight: number;
+  nextEpochStartCoreBlockHeight: number;
   totalBlocks: number;
   proposerCount: number;
   processingFees: bigint;
@@ -87,7 +91,11 @@ export interface NodeRow {
   lastEpochCredits: bigint;
   avgBlocksPerEpoch: number;
   windowCredits: bigint;
-  /** Estimated gross credits per 30 days, from recent epochs. */
+  /** Platform-side gross credits per 30 days, from recent epochs. */
+  estMonthlyPlatformCredits: number;
+  /** Core-chain payment-queue credits per 30 days (0 if not enabled/unknown). */
+  estMonthlyCoreCredits: number;
+  /** Total estimated gross credits per 30 days (platform + core). */
   estMonthlyCredits: number;
   inActiveQuorum: boolean;
   eta?: ProposalEta;
@@ -116,6 +124,10 @@ export interface DashboardData {
   epochsPerMonth: number;
   activeEvonodes: number;
   avgPoolCredits: number;
+  /** Average platform credits per node-epoch estimate window (for tooltips). */
+  estimateEpochCount: number;
+  /** Core-chain payment context; null when the masternode-count source failed. */
+  coreNetwork: import('./lib/core').CoreNetworkInfo | null;
   /** Whether epoch/proposer data came proof-verified through the SDK. */
   proved: boolean;
 }

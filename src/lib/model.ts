@@ -9,6 +9,7 @@
 import { fetchCurrentQuorumsInfo } from './grpcweb';
 import { fetchCurrentEpoch, fetchFinalizedEpochs, fetchMasternodes } from './sdk';
 import { buildProposalSchedule } from './schedule';
+import { buildCoreNetworkInfo, fetchEnabledMasternodeCount } from './core';
 import type {
   DashboardData,
   EpochSummary,
@@ -45,6 +46,13 @@ function alignKeys<V>(map: Map<string, V>, canonical: Set<string>): Map<string, 
 }
 
 export async function loadDashboardData(network: Network): Promise<DashboardData> {
+  // Core RPC gateway (not a platform query) — used for the L1 payment-queue
+  // estimate; the dashboard degrades to platform-only numbers if it fails.
+  const enabledMasternodesPromise = fetchEnabledMasternodeCount(network).catch((e) => {
+    console.warn('masternode count unavailable, omitting core payouts:', e);
+    return null;
+  });
+
   const masternodes = await fetchMasternodes(network);
 
   // Platform call 1: quorums (proposer schedule + chain height/time/epoch).
@@ -79,6 +87,8 @@ export async function loadDashboardData(network: Network): Promise<DashboardData
       index: e.index,
       firstBlockHeight: e.firstBlockHeight,
       firstBlockTime: Number(e.firstBlockTime),
+      firstCoreBlockHeight: e.firstCoreBlockHeight,
+      nextEpochStartCoreBlockHeight: e.nextEpochStartCoreBlockHeight,
       totalBlocks: Number(e.totalBlocks),
       proposerCount: proposers.size,
       processingFees: e.processingFees,
@@ -132,6 +142,27 @@ export async function loadDashboardData(network: Network): Promise<DashboardData
     }
   }
 
+  // --- core-chain payment context ---------------------------------------------
+  const enabledMasternodes = await enabledMasternodesPromise;
+  let coreNetwork = null;
+  if (enabledMasternodes != null && epochs.length > 0) {
+    const lastEpoch = epochs[epochs.length - 1];
+    const coreWindow = epochs.slice(-ESTIMATE_EPOCHS).filter((e) => Number.isFinite(e.durationMs));
+    const coreBlocksInWindow = coreWindow.reduce(
+      (s, e) => s + (e.nextEpochStartCoreBlockHeight - e.firstCoreBlockHeight),
+      0,
+    );
+    const coreWindowMs = coreWindow.reduce((s, e) => s + e.durationMs, 0);
+    if (coreBlocksInWindow > 0 && coreWindowMs > 0) {
+      coreNetwork = buildCoreNetworkInfo(
+        enabledMasternodes,
+        masternodes,
+        lastEpoch.nextEpochStartCoreBlockHeight,
+        coreBlocksInWindow * (MONTH_MS / coreWindowMs),
+      );
+    }
+  }
+
   // --- rows ------------------------------------------------------------------
   const estimateWindow = epochs.slice(-ESTIMATE_EPOCHS);
   const estimateSpanMs = estimateWindow.reduce(
@@ -152,6 +183,8 @@ export async function loadDashboardData(network: Network): Promise<DashboardData
       windowBlocks += s.blocks;
       if (estimateEpochSet.has(s.epoch)) estimateCredits += s.credits;
     }
+    const estMonthlyPlatformCredits =
+      estimateSpanMs > 0 ? Number(estimateCredits) * (MONTH_MS / estimateSpanMs) : 0;
     return {
       proTxHash,
       registered: false,
@@ -159,8 +192,9 @@ export async function loadDashboardData(network: Network): Promise<DashboardData
       lastEpochCredits: last?.credits ?? 0n,
       avgBlocksPerEpoch: epochs.length ? windowBlocks / epochs.length : 0,
       windowCredits,
-      estMonthlyCredits:
-        estimateSpanMs > 0 ? Number(estimateCredits) * (MONTH_MS / estimateSpanMs) : 0,
+      estMonthlyPlatformCredits,
+      estMonthlyCoreCredits: 0,
+      estMonthlyCredits: estMonthlyPlatformCredits,
       inActiveQuorum: activeMembers.has(proTxHash),
       eta: schedule.get(proTxHash),
     };
@@ -173,6 +207,11 @@ export async function loadDashboardData(network: Network): Promise<DashboardData
     row.registered = true;
     row.address = m.address;
     row.status = m.status;
+    // Only ENABLED nodes advance in the core payment queue.
+    if (coreNetwork && m.status === 'ENABLED') {
+      row.estMonthlyCoreCredits = coreNetwork.evonodeMonthlyCredits;
+      row.estMonthlyCredits = row.estMonthlyPlatformCredits + row.estMonthlyCoreCredits;
+    }
     rows.set(key, row);
   }
   // Proposers with history that are no longer in the endpoint list.
@@ -198,6 +237,8 @@ export async function loadDashboardData(network: Network): Promise<DashboardData
     epochsPerMonth,
     activeEvonodes: masternodes.filter((m) => m.status === 'ENABLED').length,
     avgPoolCredits,
+    estimateEpochCount: estimateWindow.length,
+    coreNetwork,
     proved: fin.proved,
   };
 }

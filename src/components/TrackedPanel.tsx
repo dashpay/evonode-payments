@@ -1,4 +1,4 @@
-import { formatDash, formatDuration, shortHash } from '../lib/format';
+import { etaLabel, etaTooltip, formatDash, monthlyTooltip, shortHash } from '../lib/format';
 import type { DashboardData, TrackedLiveData } from '../types';
 
 export function TrackedPanel({
@@ -76,7 +76,7 @@ export function TrackedPanel({
         <div className="card">
           <div className="card-value">{totalMonthly > 0 ? formatDash(totalMonthly, 2) : '—'}</div>
           <div className="card-label">Combined est. monthly</div>
-          <div className="card-sub">gross, before masternode reward shares</div>
+          <div className="card-sub">platform + core payouts, gross — hover rows for breakdowns</div>
         </div>
       </div>
 
@@ -98,7 +98,6 @@ export function TrackedPanel({
               const n = rowByHash.get(hash);
               const balance = live?.balances.get(hash);
               const blocks = live?.currentEpochBlocks.get(hash);
-              const etaRemaining = n?.eta ? Math.max(0, n.eta.etaMs - (now - data.fetchedAt)) : null;
               return (
                 <tr key={hash} onClick={() => onSelect(hash)}>
                   <td>
@@ -133,7 +132,7 @@ export function TrackedPanel({
                     )}
                   </td>
                   <td>{blocks != null ? blocks : <span className="muted">—</span>}</td>
-                  <td>
+                  <td title={n ? monthlyTooltip(n, data) : undefined}>
                     {n && n.estMonthlyCredits > 0 ? (
                       formatDash(n.estMonthlyCredits, 2)
                     ) : (
@@ -141,7 +140,11 @@ export function TrackedPanel({
                     )}
                   </td>
                   <td>
-                    {etaRemaining != null ? formatDuration(etaRemaining) : <span className="muted">—</span>}
+                    {n?.eta ? (
+                      <span title={etaTooltip(n.eta, data, now)}>{etaLabel(n.eta, data, now)}</span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                 </tr>
               );

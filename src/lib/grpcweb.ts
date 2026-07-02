@@ -288,6 +288,8 @@ export interface RawFinalizedEpoch {
   index: number;
   firstBlockHeight: bigint;
   firstBlockTime: bigint;
+  firstCoreBlockHeight: number;
+  nextEpochStartCoreBlockHeight: number;
   totalBlocks: bigint;
   processingFees: bigint;
   distributedStorageFees: bigint;
@@ -305,6 +307,8 @@ function parseFinalizedEpochInfo(buf: Uint8Array): RawFinalizedEpoch {
     index: 0,
     firstBlockHeight: 0n,
     firstBlockTime: 0n,
+    firstCoreBlockHeight: 0,
+    nextEpochStartCoreBlockHeight: 0,
     totalBlocks: 0n,
     processingFees: 0n,
     distributedStorageFees: 0n,
@@ -317,7 +321,9 @@ function parseFinalizedEpochInfo(buf: Uint8Array): RawFinalizedEpoch {
     const { field, wire } = r.tag();
     if (field === 1 && wire === 0) e.index = Number(r.varint());
     else if (field === 2 && wire === 0) e.firstBlockHeight = r.varint();
+    else if (field === 3 && wire === 0) e.firstCoreBlockHeight = Number(r.varint());
     else if (field === 4 && wire === 0) e.firstBlockTime = r.varint();
+    else if (field === 8 && wire === 0) e.nextEpochStartCoreBlockHeight = Number(r.varint());
     else if (field === 7 && wire === 0) e.totalBlocks = r.varint();
     else if (field === 9 && wire === 0) e.processingFees = r.varint();
     else if (field === 10 && wire === 0) e.distributedStorageFees = r.varint();

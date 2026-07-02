@@ -1,4 +1,4 @@
-import { formatDash, formatDuration } from '../lib/format';
+import { averageNodeTooltip, formatDash, formatDuration } from '../lib/format';
 import type { DashboardData } from '../types';
 
 export function Summary({ data, now }: { data: DashboardData; now: number }) {
@@ -9,7 +9,9 @@ export function Summary({ data, now }: { data: DashboardData; now: number }) {
   const remaining = data.avgEpochDurationMs - elapsed;
 
   const networkMonthly = data.avgPoolCredits * data.epochsPerMonth;
-  const perNodeMonthly = data.activeEvonodes > 0 ? networkMonthly / data.activeEvonodes : 0;
+  const perNodeMonthly =
+    (data.activeEvonodes > 0 ? networkMonthly / data.activeEvonodes : 0) +
+    (data.coreNetwork?.evonodeMonthlyCredits ?? 0);
 
   return (
     <>
@@ -30,17 +32,22 @@ export function Summary({ data, now }: { data: DashboardData; now: number }) {
               : 'fees + core block rewards'}
           </div>
         </div>
-        <div className="card good">
+        <div
+          className="card good"
+          title={`Platform fee pools distributed to proposers.\navg pool ${formatDash(data.avgPoolCredits, 0)} × ${data.epochsPerMonth.toFixed(2)} epochs/mo.\nCore payment-queue payouts to evonodes come on top (see the average-node card).`}
+        >
           <div className="card-value">{formatDash(networkMonthly, 0)}</div>
-          <div className="card-label">Est. network payout / month</div>
+          <div className="card-label">Est. platform payout / month</div>
           <div className="card-sub">
             avg pool × {data.epochsPerMonth.toFixed(1)} epochs/month
           </div>
         </div>
-        <div className="card">
+        <div className="card" title={averageNodeTooltip(data)}>
           <div className="card-value">{formatDash(perNodeMonthly, 1)}</div>
           <div className="card-label">Est. average node / month</div>
-          <div className="card-sub">gross, before masternode reward shares</div>
+          <div className="card-sub">
+            {data.coreNetwork ? 'platform + core payouts' : 'platform only'} — hover for breakdown
+          </div>
         </div>
         <div className="card">
           <div className="card-value">{data.activeEvonodes}</div>

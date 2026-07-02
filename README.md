@@ -24,6 +24,7 @@ in `rs-drive-abci`). The dashboard reconstructs this per node and per epoch.
 | Data | Source | Calls per page load |
 | --- | --- | --- |
 | Evonode list + software versions | `quorums.{net}.networks.dash.org/masternodes` (REST) | 1 (not a platform query) |
+| Masternode counts for the core payment-queue estimate | `rpc.digitalcash.dev` / `trpc.digitalcash.dev` (`masternodelist status`) | 1 (not a platform query) |
 | Fee pools + **every** proposer's block count for the last 24 epochs | `getFinalizedEpochInfos` (proof-verified via [@dashevo/evo-sdk](https://www.npmjs.com/package/@dashevo/evo-sdk)) | 1 |
 | Current epoch start/index | `getEpochsInfo` | 1 |
 | Validator sets for the proposer-ETA walk | `getCurrentQuorumsInfo` (gRPC-Web) | 1 |
@@ -49,13 +50,30 @@ current-epoch block counts for the whole set via 2 batched platform calls
 (`getIdentitiesBalances` + `getEvonodesProposedEpochBlocksByIds`), regardless
 of how many nodes are tracked.
 
+### Monthly estimate = Platform + Core
+
+Every "est. monthly" figure combines two income streams (hover any of them for
+the full calculation):
+
+- **Platform proposals** — the node's average per-epoch payout over the last 6
+  finalized epochs × epochs per month.
+- **Core payment queue** — evonodes are paid 4 consecutive L1 blocks per queue
+  cycle (`enabled regular + 4 × enabled evonodes` blocks long). Each paid block
+  yields 62.5% of the masternode share (the other 37.5% funds Platform —
+  Drive's `CORE_GENESIS_BLOCK_SUBSIDY` constants: 5 DASH genesis subsidy × 60%
+  MN share, −1/14 every 210,240 blocks). Masternode counts come from the public
+  Core RPC gateway; if it's unreachable the dashboard degrades to
+  platform-only figures.
+
 ### Next-proposal estimate
 
 Mirrors drive-abci's `validator_set_update_v2`: Tenderdash walks the active
 quorum's members in ascending raw proTxHash order, then rotates to the next
-quorum by index (skipping the two oldest when more than 10 exist). ETA = slot ×
-average block time over the current epoch. Quorum churn at DKG boundaries
-shifts the schedule, so treat it as an estimate.
+quorum by index (skipping the two oldest when more than 10 exist). Shown as
+blocks until the node's slot plus how many validator-set rotations (quorum
+changes) precede it; the wall-clock estimate lives in the hover tooltip.
+Quorum churn at DKG boundaries shifts the schedule, so treat it as an
+estimate.
 
 Earnings figures are **gross** proposer payouts — masternode reward shares
 (splits to `payToId` identities) are not subtracted.
