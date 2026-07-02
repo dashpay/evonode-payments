@@ -27,7 +27,7 @@ in `rs-drive-abci`). The dashboard reconstructs this per node and per epoch.
 | Fee pools + **every** proposer's block count for the last 24 epochs | `getFinalizedEpochInfos` (proof-verified via [@dashevo/evo-sdk](https://www.npmjs.com/package/@dashevo/evo-sdk)) | 1 |
 | Current epoch start/index | `getEpochsInfo` | 1 |
 | Validator sets for the proposer-ETA walk | `getCurrentQuorumsInfo` (gRPC-Web) | 1 |
-| Node identity balance (claimable credits) | `getIdentityBalance` | on button press only |
+| Node identity balance (claimable credits) | `getIdentityBalance` / `getIdentitiesBalances` | on button press only |
 | Node's blocks in the in-progress epoch | `getEvonodesProposedEpochBlocksByIds` | on button press only |
 
 `getFinalizedEpochInfos` is the workhorse: one call returns, for each epoch,
@@ -38,6 +38,16 @@ platform query. Per-node queries that can only be made one evonode at a time
 
 There is no auto-refresh; ETA countdowns tick locally and a manual Refresh
 button re-runs the three load queries.
+
+### Tracking your evonodes
+
+Star any node (in the table or its detail panel) to track it. Tracking is
+stored in `localStorage` — **this browser only**, per network; nothing leaves
+the machine. The tracked panel shows every tracked node with a combined
+claimable total and monthly estimate; one button loads balances and
+current-epoch block counts for the whole set via 2 batched platform calls
+(`getIdentitiesBalances` + `getEvonodesProposedEpochBlocksByIds`), regardless
+of how many nodes are tracked.
 
 ### Next-proposal estimate
 
