@@ -389,18 +389,20 @@ export async function fetchFinalizedEpochsUnproved(
   });
 }
 
-/** Unproved getEvonodesProposedEpochBlocksByIds for a single node. */
+/** Unproved getEvonodesProposedEpochBlocksByIds — display-hex id -> block count. */
 export async function fetchProposedBlocksUnproved(
   network: Network,
   masternodes: MasternodeEntry[],
   epoch: number,
-  idBytes: Uint8Array,
-): Promise<number> {
-  const inner = [0x08, ...varintBytes(epoch), 0x12, ...varintBytes(idBytes.length), ...idBytes];
+  ids: Uint8Array[],
+): Promise<Map<string, number>> {
+  const inner = [0x08, ...varintBytes(epoch)];
+  for (const id of ids) inner.push(0x12, ...varintBytes(id.length), ...id);
   const request = new Uint8Array([0x0a, ...varintBytes(inner.length), ...inner]);
 
   return withEndpoints(network, masternodes, async (endpoint) => {
     const message = await grpcCall(endpoint, 'getEvonodesProposedEpochBlocksByIds', request);
+    const counts = new Map<string, number>();
     const r = new Reader(message);
     while (!r.eof) {
       const { field, wire } = r.tag();
@@ -414,21 +416,67 @@ export async function fetchProposedBlocksUnproved(
               const it = info.tag();
               if (it.field === 1 && it.wire === 2) {
                 const e = new Reader(info.bytes());
+                let id = new Uint8Array();
                 let count = 0;
                 while (!e.eof) {
                   const et = e.tag();
-                  if (et.field === 2 && et.wire === 0) count = Number(e.varint());
+                  if (et.field === 1 && et.wire === 2) id = Uint8Array.from(e.bytes());
+                  else if (et.field === 2 && et.wire === 0) count = Number(e.varint());
                   else e.skip(et.wire);
                 }
-                return count;
-              }
-              info.skip(it.wire);
+                counts.set(hex(id), count);
+              } else info.skip(it.wire);
             }
           } else v0.skip(t.wire);
         }
       } else r.skip(wire);
     }
-    return 0; // no entry — node has proposed nothing this epoch
+    return counts; // absent ids proposed nothing this epoch
+  });
+}
+
+/** Unproved getIdentitiesBalances — display-hex id -> credits (null if no identity). */
+export async function fetchIdentitiesBalancesUnproved(
+  network: Network,
+  masternodes: MasternodeEntry[],
+  ids: Uint8Array[],
+): Promise<Map<string, bigint | null>> {
+  const inner: number[] = [];
+  for (const id of ids) inner.push(0x0a, ...varintBytes(id.length), ...id);
+  const request = new Uint8Array([0x0a, ...varintBytes(inner.length), ...inner]);
+
+  return withEndpoints(network, masternodes, async (endpoint) => {
+    const message = await grpcCall(endpoint, 'getIdentitiesBalances', request);
+    const balances = new Map<string, bigint | null>();
+    const r = new Reader(message);
+    while (!r.eof) {
+      const { field, wire } = r.tag();
+      if (field === 1 && wire === 2) {
+        const v0 = new Reader(r.bytes());
+        while (!v0.eof) {
+          const t = v0.tag();
+          if (t.field === 1 && t.wire === 2) {
+            const list = new Reader(v0.bytes());
+            while (!list.eof) {
+              const lt = list.tag();
+              if (lt.field === 1 && lt.wire === 2) {
+                const e = new Reader(list.bytes());
+                let id = new Uint8Array();
+                let balance: bigint | null = null;
+                while (!e.eof) {
+                  const et = e.tag();
+                  if (et.field === 1 && et.wire === 2) id = Uint8Array.from(e.bytes());
+                  else if (et.field === 2 && et.wire === 0) balance = e.varint();
+                  else e.skip(et.wire);
+                }
+                balances.set(hex(id), balance);
+              } else list.skip(lt.wire);
+            }
+          } else v0.skip(t.wire);
+        }
+      } else r.skip(wire);
+    }
+    return balances;
   });
 }
 

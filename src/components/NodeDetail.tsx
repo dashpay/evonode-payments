@@ -15,6 +15,8 @@ export function NodeDetail({
   live,
   liveLoading,
   now,
+  tracked,
+  onToggleTracked,
   onFetchLive,
   onClose,
 }: {
@@ -23,6 +25,8 @@ export function NodeDetail({
   live: LiveNodeData | undefined;
   liveLoading: boolean;
   now: number;
+  tracked: boolean;
+  onToggleTracked: () => void;
   onFetchLive: () => void;
   onClose: () => void;
 }) {
@@ -68,9 +72,14 @@ export function NodeDetail({
             {row?.inActiveQuorum && <span className="badge neutral">active quorum</span>}
           </div>
         </div>
-        <button className="refresh" onClick={onClose}>
-          ✕ Close
-        </button>
+        <div className="detail-actions">
+          <button className={`refresh ${tracked ? 'tracked-btn' : ''}`} onClick={onToggleTracked}>
+            {tracked ? '★ Tracked' : '☆ Track'}
+          </button>
+          <button className="refresh" onClick={onClose}>
+            ✕ Close
+          </button>
+        </div>
       </div>
 
       <div className="cards detail-cards">

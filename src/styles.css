@@ -230,6 +230,65 @@ button.primary:disabled {
   margin-bottom: 20px;
 }
 
+/* --- tracked nodes ---------------------------------------------------------- */
+
+.tracked {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+
+.tracked-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tracked-cards {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 240px));
+}
+
+.tracked-cards .card {
+  background: var(--bg);
+}
+
+.tracked .table-wrap {
+  background: var(--bg);
+}
+
+button.star {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+button.star.active {
+  color: var(--warn);
+}
+
+button.star:hover {
+  color: var(--warn);
+}
+
+button.tracked-btn {
+  color: var(--warn);
+  border-color: rgba(210, 153, 34, 0.5);
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* --- node detail ---------------------------------------------------------- */
 
 .detail {

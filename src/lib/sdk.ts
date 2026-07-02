@@ -5,6 +5,7 @@ import { EvoSDK } from '@dashevo/evo-sdk';
 import { idToHex, hexToBytes } from './base58';
 import {
   fetchFinalizedEpochsUnproved,
+  fetchIdentitiesBalancesUnproved,
   fetchIdentityBalanceUnproved,
   fetchProposedBlocksUnproved,
   type RawFinalizedEpoch,
@@ -100,38 +101,94 @@ export async function fetchFinalizedEpochs(
   }
 }
 
-/** Blocks a node has proposed in the given (current) epoch. One node, one call. */
+const reverseHex = (h: string): string => {
+  let out = '';
+  for (let i = h.length - 2; i >= 0; i -= 2) out += h.slice(i, i + 2);
+  return out;
+};
+
+/**
+ * Responses key identifiers as base58 or hex, sometimes in Core-reversed byte
+ * order. Re-key onto the exact display-hex hashes that were requested.
+ */
+function rekeyOntoRequested<V>(map: Map<string, V>, requested: string[]): Map<string, V> {
+  const want = new Set(requested);
+  const out = new Map<string, V>();
+  for (const [rawKey, value] of map) {
+    const key = idToHex(rawKey);
+    out.set(want.has(key) ? key : reverseHex(key), value);
+  }
+  return out;
+}
+
+/**
+ * Blocks each node has proposed in the given (current) epoch — display-hex
+ * proTxHash -> count. Any number of nodes, one platform call.
+ */
+export async function fetchNodesProposedBlocks(
+  network: Network,
+  masternodes: MasternodeEntry[],
+  epoch: number,
+  proTxHashes: string[],
+): Promise<Map<string, number>> {
+  const ids = proTxHashes.map(hexToBytes);
+  let raw: Map<string, number>;
+  try {
+    const sdk = await getSdk(network);
+    const counts = await sdk.epoch.evonodesProposedBlocksByIds(epoch, ids);
+    raw = new Map(Array.from(counts, ([k, v]) => [k, Number(v)]));
+  } catch (e) {
+    console.warn('proved evonodesProposedBlocksByIds failed, falling back:', e);
+    raw = await fetchProposedBlocksUnproved(network, masternodes, epoch, ids);
+  }
+  const rekeyed = rekeyOntoRequested(raw, proTxHashes);
+  // Nodes with no entry have proposed nothing this epoch.
+  return new Map(proTxHashes.map((h) => [h, rekeyed.get(h) ?? 0]));
+}
+
+/**
+ * Claimable credits — display-hex proTxHash -> node-identity balance
+ * (identity id == proTxHash). Any number of nodes, one platform call.
+ */
+export async function fetchNodesBalances(
+  network: Network,
+  masternodes: MasternodeEntry[],
+  proTxHashes: string[],
+): Promise<Map<string, bigint | null>> {
+  const ids = proTxHashes.map(hexToBytes);
+  let raw: Map<string, bigint | null>;
+  try {
+    const sdk = await getSdk(network);
+    const balances = await sdk.identities.balances(ids);
+    raw = new Map(Array.from(balances, ([k, v]) => [k, v ?? null]));
+  } catch (e) {
+    console.warn('proved identities balances failed, falling back:', e);
+    if (ids.length === 1) {
+      raw = new Map([[proTxHashes[0], await fetchIdentityBalanceUnproved(network, masternodes, ids[0])]]);
+    } else {
+      raw = await fetchIdentitiesBalancesUnproved(network, masternodes, ids);
+    }
+  }
+  const rekeyed = rekeyOntoRequested(raw, proTxHashes);
+  return new Map(proTxHashes.map((h) => [h, rekeyed.get(h) ?? null]));
+}
+
+/** Single-node conveniences for the detail panel. */
 export async function fetchNodeProposedBlocks(
   network: Network,
   masternodes: MasternodeEntry[],
   epoch: number,
   proTxHashHex: string,
 ): Promise<number> {
-  const idBytes = hexToBytes(proTxHashHex);
-  try {
-    const sdk = await getSdk(network);
-    const counts = await sdk.epoch.evonodesProposedBlocksByIds(epoch, [idBytes]);
-    for (const [, count] of counts) return Number(count);
-    return 0;
-  } catch (e) {
-    console.warn('proved evonodesProposedBlocksByIds failed, falling back:', e);
-    return fetchProposedBlocksUnproved(network, masternodes, epoch, idBytes);
-  }
+  const map = await fetchNodesProposedBlocks(network, masternodes, epoch, [proTxHashHex]);
+  return map.get(proTxHashHex) ?? 0;
 }
 
-/** Claimable credits: the node identity's balance (identity id == proTxHash). */
 export async function fetchNodeBalance(
   network: Network,
   masternodes: MasternodeEntry[],
   proTxHashHex: string,
 ): Promise<bigint | null> {
-  const idBytes = hexToBytes(proTxHashHex);
-  try {
-    const sdk = await getSdk(network);
-    const balance = await sdk.identities.balance(idBytes);
-    return balance ?? null;
-  } catch (e) {
-    console.warn('proved identity balance failed, falling back:', e);
-    return fetchIdentityBalanceUnproved(network, masternodes, idBytes);
-  }
+  const map = await fetchNodesBalances(network, masternodes, [proTxHashHex]);
+  return map.get(proTxHashHex) ?? null;
 }

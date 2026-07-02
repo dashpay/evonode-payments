@@ -11,7 +11,7 @@ type SortKey =
   | 'estMonthlyCredits'
   | 'eta';
 
-type Filter = 'all' | 'quorum' | 'earning';
+type Filter = 'all' | 'quorum' | 'earning' | 'tracked';
 
 const sortValue = (n: NodeRow, key: SortKey): number | string => {
   switch (key) {
@@ -36,12 +36,16 @@ export function NodeTable({
   data,
   now,
   selected,
+  tracked,
   onSelect,
+  onToggleTracked,
 }: {
   data: DashboardData;
   now: number;
   selected: string | null;
+  tracked: Set<string>;
   onSelect: (proTxHash: string) => void;
+  onToggleTracked: (proTxHash: string) => void;
 }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -53,6 +57,7 @@ export function NodeTable({
     let out = data.nodes;
     if (filter === 'quorum') out = out.filter((n) => n.inActiveQuorum);
     else if (filter === 'earning') out = out.filter((n) => n.windowCredits > 0n);
+    else if (filter === 'tracked') out = out.filter((n) => tracked.has(n.proTxHash));
     if (q) {
       out = out.filter(
         (n) => n.proTxHash.includes(q) || (n.address ?? '').toLowerCase().includes(q),
@@ -64,7 +69,7 @@ export function NodeTable({
       const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : (va as number) - (vb as number);
       return sortAsc ? cmp : -cmp;
     });
-  }, [data.nodes, search, filter, sortKey, sortAsc]);
+  }, [data.nodes, search, filter, sortKey, sortAsc, tracked]);
 
   const header = (label: string, key: SortKey) => (
     <th
@@ -101,6 +106,7 @@ export function NodeTable({
               ['all', `All (${data.nodes.length})`],
               ['quorum', 'In active quorums'],
               ['earning', 'Earned in window'],
+              ['tracked', `★ Tracked (${tracked.size})`],
             ] as [Filter, string][]
           ).map(([f, label]) => (
             <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
@@ -119,6 +125,7 @@ export function NodeTable({
         <table>
           <thead>
             <tr>
+              <th title="Track locally"></th>
               {header('Evonode', 'proTxHash')}
               {header('Address', 'address')}
               {header(`Blocks (ep ${lastIndex})`, 'lastEpochBlocks')}
@@ -135,6 +142,18 @@ export function NodeTable({
                 className={n.proTxHash === selected ? 'selected' : ''}
                 onClick={() => onSelect(n.proTxHash)}
               >
+                <td>
+                  <button
+                    className={`star ${tracked.has(n.proTxHash) ? 'active' : ''}`}
+                    title={tracked.has(n.proTxHash) ? 'Untrack' : 'Track locally'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleTracked(n.proTxHash);
+                    }}
+                  >
+                    {tracked.has(n.proTxHash) ? '★' : '☆'}
+                  </button>
+                </td>
                 <td className="mono">
                   {shortHash(n.proTxHash)}
                   {!n.registered && (
@@ -162,7 +181,7 @@ export function NodeTable({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="empty">
+                <td colSpan={8} className="empty">
                   No nodes match.
                 </td>
               </tr>
@@ -172,6 +191,7 @@ export function NodeTable({
       </div>
       <p className="table-footnote">
         Click a node for its per-epoch history, claimable balance, and live current-epoch count.
+        ★ tracks a node locally (this browser only) for the combined claimable-balance view.
         Earnings are gross proposer payouts before masternode reward shares. “Next proposal” is an
         estimate from the current validator-set rotation; nodes outside active quorums enter the
         schedule at the next rotation.

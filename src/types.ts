@@ -128,3 +128,12 @@ export interface LiveNodeData {
   epochQueried: number;
   error?: string;
 }
+
+/** Batched on-demand data for all tracked nodes (2 platform calls total). */
+export interface TrackedLiveData {
+  fetchedAt: number;
+  epochQueried: number;
+  balances: Map<string, bigint | null>;
+  currentEpochBlocks: Map<string, number>;
+  error?: string;
+}
