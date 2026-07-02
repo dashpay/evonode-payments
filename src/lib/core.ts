@@ -6,7 +6,11 @@
 //   Since v20, 37.5% of the masternode share of EVERY core block is allocated
 //   to Platform (that is FinalizedEpochInfo.coreBlockRewards); the payee in
 //   the payment queue receives the remaining 62.5% on L1.
-//   Evonodes occupy 4 consecutive positions per payment-queue cycle (DIP-28).
+//   Evonodes are paid ONCE per queue cycle, same as regular masternodes:
+//   DIP-28's 4-consecutive-payments rule ended with the masternode-reward
+//   reallocation fork (verified on-chain: 596 distinct payees over 600 recent
+//   blocks, evonode lastpaid blocks 1 apart, consecutivePayments all 0).
+//   The 4× collateral is compensated through Platform rewards instead.
 
 import type { MasternodeEntry, Network } from '../types';
 
@@ -32,7 +36,7 @@ export interface CoreNetworkInfo {
   enabledMasternodes: number;
   enabledRegular: number;
   enabledEvonodes: number;
-  /** Payment-queue cycle length in blocks: regular + 4 × evonodes. */
+  /** Payment-queue cycle length in blocks: one block per enabled masternode. */
   paymentQueueWeight: number;
   coreBlocksPerMonth: number;
   /** ≈ first core height of the current epoch. */
@@ -71,10 +75,10 @@ export function buildCoreNetworkInfo(
 ): CoreNetworkInfo {
   const enabledEvonodes = masternodes.filter((m) => m.status === 'ENABLED').length;
   const enabledRegular = Math.max(0, enabledMasternodes - enabledEvonodes);
-  const paymentQueueWeight = enabledRegular + 4 * enabledEvonodes;
+  const paymentQueueWeight = enabledMasternodes;
   const l1PayoutPerBlockCredits = l1PayoutPerCoreBlockCredits(coreHeight);
   const evonodePaymentsPerMonth =
-    paymentQueueWeight > 0 ? (4 * coreBlocksPerMonth) / paymentQueueWeight : 0;
+    paymentQueueWeight > 0 ? coreBlocksPerMonth / paymentQueueWeight : 0;
   return {
     enabledMasternodes,
     enabledRegular,

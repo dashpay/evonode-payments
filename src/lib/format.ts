@@ -92,8 +92,8 @@ function coreLines(row: Pick<NodeRow, 'estMonthlyCoreCredits' | 'status' | 'regi
   }
   return [
     `Core payment queue: ${dashNum(row.estMonthlyCoreCredits)} DASH/mo`,
-    `· evonodes are paid 4 consecutive blocks per queue cycle;`,
-    `  queue = ${core.enabledRegular.toLocaleString()} regular + 4 × ${core.enabledEvonodes.toLocaleString()} evonodes = ${core.paymentQueueWeight.toLocaleString()} blocks`,
+    `· evonodes are paid once per queue cycle, like regular masternodes;`,
+    `  queue = ${core.paymentQueueWeight.toLocaleString()} enabled masternodes (${core.enabledRegular.toLocaleString()} regular + ${core.enabledEvonodes.toLocaleString()} evonodes)`,
     `· ≈ ${core.evonodePaymentsPerMonth.toFixed(1)} paid blocks/mo × ${dashNum(core.l1PayoutPerBlockCredits, 4)} DASH`,
     `  (62.5% of the masternode share at core height ${core.coreHeight.toLocaleString()}; the other 37.5% funds Platform)`,
   ];
@@ -132,7 +132,7 @@ export function averageNodeTooltip(data: DashboardData): string {
       ? [
           `Core payment queue: ${dashNum(core.evonodeMonthlyCredits)} DASH/mo`,
           `· ≈ ${core.evonodePaymentsPerMonth.toFixed(1)} paid blocks/mo × ${dashNum(core.l1PayoutPerBlockCredits, 4)} DASH (62.5% of MN share)`,
-          `· queue = ${core.enabledRegular.toLocaleString()} regular + 4 × ${core.enabledEvonodes.toLocaleString()} evonodes = ${core.paymentQueueWeight.toLocaleString()} blocks`,
+          `· queue = ${core.paymentQueueWeight.toLocaleString()} enabled masternodes (${core.enabledRegular.toLocaleString()} regular + ${core.enabledEvonodes.toLocaleString()} evonodes), one payment each per cycle`,
         ]
       : ['Core payment queue: unavailable (masternode-count source unreachable).']),
     '',

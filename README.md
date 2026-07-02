@@ -57,13 +57,15 @@ the full calculation):
 
 - **Platform proposals** — the node's average per-epoch payout over the last 6
   finalized epochs × epochs per month.
-- **Core payment queue** — evonodes are paid 4 consecutive L1 blocks per queue
-  cycle (`enabled regular + 4 × enabled evonodes` blocks long). Each paid block
-  yields 62.5% of the masternode share (the other 37.5% funds Platform —
-  Drive's `CORE_GENESIS_BLOCK_SUBSIDY` constants: 5 DASH genesis subsidy × 60%
-  MN share, −1/14 every 210,240 blocks). Masternode counts come from the public
-  Core RPC gateway; if it's unreachable the dashboard degrades to
-  platform-only figures.
+- **Core payment queue** — evonodes are paid one L1 block per queue cycle,
+  same as regular masternodes (DIP-28's 4-consecutive-payments rule ended with
+  the masternode-reward-reallocation fork; the 4× collateral is compensated
+  through Platform rewards). The cycle is one block per enabled masternode.
+  Each paid block yields 62.5% of the masternode share (the other 37.5% funds
+  Platform — Drive's `CORE_GENESIS_BLOCK_SUBSIDY` constants: 5 DASH genesis
+  subsidy × 60% MN share, −1/14 every 210,240 blocks). Masternode counts come
+  from the public Core RPC gateway; if it's unreachable the dashboard degrades
+  to platform-only figures.
 
 ### Next-proposal estimate
 
